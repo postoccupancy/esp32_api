@@ -30,6 +30,7 @@ platformdirs==4.5.0
 pluggy==1.6.0
 postgrest==2.24.0
 propcache==0.4.1
+psycopg2-binary==2.9.11
 pycparser==2.23
 pydantic==2.12.2
 pydantic_core==2.41.4
@@ -40,6 +41,7 @@ pyserial==3.5
 pytest==9.0.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
+pytz==2025.2
 PyYAML==6.0.3
 realtime==2.24.0
 reedsolo==1.7.0
