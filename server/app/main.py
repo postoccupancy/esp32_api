@@ -4,10 +4,18 @@ from fastapi import FastAPI, Request, Header
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from datetime import datetime, timezone
+import threading
+
+app = FastAPI()
+
+from app.api.rag_router import router as rag_router
+
+# add endpoints from rag_router.py to the main app, prefixed with /rag, and tagged as 'rag' in the FastAPI /docs UI
+app.include_router(rag_router, prefix="/rag", tags=["rag"])
 
 load_dotenv()  # take environment variables from .env file
 
-from supabase import create_client, Client  # pip install supabase
+from supabase import create_client  # pip install supabase
 import uvicorn
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
@@ -17,6 +25,7 @@ SUPABASE_TABLE = os.getenv("SUPABASE_TABLE", "readings")
 SHARED_TOKEN = os.getenv("INGEST_TOKEN", "change-me")
 
 supabase = None
+
 if SUPABASE_URL and SUPABASE_KEY:
     try:
         from supabase import create_client
@@ -28,7 +37,15 @@ if SUPABASE_URL and SUPABASE_KEY:
 else:
     print("[supabase] missing SUPABASE_URL or SUPABASE_*KEY; skipping client")
 
-app = FastAPI()
+
+### Index loop ###
+@app.on_event("startup")
+def start_index_loop():
+    from app.scripts.index_loop import index_loop
+    thread = threading.Thread(target=index_loop, daemon=True)
+    thread.start()
+
+
 
 def insert_supabase(row: dict):
     if supabase is None:
@@ -42,6 +59,7 @@ def insert_supabase(row: dict):
     except Exception as e:
         print("[supabase] insert error:", repr(e))
         return None
+
 
 latest_reading = None
 
