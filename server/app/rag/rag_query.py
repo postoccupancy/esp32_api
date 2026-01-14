@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from langchain_core.documents import Document
 
-from app.rag.deps import get_llm, get_retriever
+from app.rag.deps import get_llm, get_sql_only_llamaindex_engine, get_retriever, get_llamaindex_query_engine
 
 import json
 from datetime import datetime, timezone, timedelta
@@ -160,7 +160,7 @@ def resolve_time_range(plan: Dict[str, Any]) -> tuple[datetime, datetime]:
     # 2) Fallback: use dateparser on the raw question
     # Try to parse a datetime implied by phrases like "yesterday afternoon"
     dt = dateparser.parse(
-        question,
+        plan,
         settings={
             "RELATIVE_BASE": now_local,
             "TIMEZONE": "America/Los_Angeles",
@@ -229,7 +229,21 @@ AGG_METRICS = {
     "latest_snapshot",
 }
 
-def answer_question(question: str) -> Dict[str, Any]:
+def llamaindex_answer_question(question: str) -> dict:
+    # uses LlamaIndex 
+    query_engine = get_llamaindex_query_engine()
+    # query_engine = get_sql_only_llamaindex_engine()
+    response = query_engine.query(question)
+    return {
+        "question": question,
+        "response": str(response),
+        "answer": getattr(response, "response", str(response)),
+        "metadata": getattr(response, "metadata", None)
+    }
+
+
+
+def _langchain_answer_question(question: str) -> Dict[str, Any]:
     llm = get_llm()
     plan = plan_query(question)
     metric = plan.get("metric", "none")
@@ -289,7 +303,90 @@ def answer_question(question: str) -> Dict[str, Any]:
         "retrieved": len(documents),
     }
 
+from llama_index.core import Settings
+from llama_index.core.tools import QueryEngineTool, ToolMetadata
+from llama_index.core.agent.workflow import ReActAgent, AgentStream
+from llama_index.core.workflow import Context
+from llama_index.core.tools import FunctionTool, ToolMetadata
+
+# Standard LlamaIndex Chat Engines (like SimpleChatEngine, ContextChatEngine) are often too rigid for the SQL+Vector combo because they expect a simple retriever.
+# An Agent on the other hand treats the engine as a "tool" it can call.
+# ReACT agent is great for CLI use because it reasons through steps
+
+def build_agent():
+    query_engine = get_llamaindex_query_engine()
+
+    def temperature_analyst(question: str) -> str:
+        response: Response = query_engine.query(question)
+        print_sources(response)
+        return str(response)
+
+    tool = FunctionTool.from_defaults(
+        fn=temperature_analyst,
+        name="temperature_analyst",
+        description="""Analyzes temperature readings from the database and compares them to reference standards in the documents.
+        Input is a natural language question ONLY. Do not pass JSON arguments.
+        """,
+
+    )
+
+    agent = ReActAgent(
+        tools=[tool],
+        llm=Settings.llm,
+        verbose=True,
+    )
+
+    context = Context(agent)
+    
+    return agent, context
+
+
+import os
+from llama_index.core.base.response.schema import Response
+RAG_K = int(os.getenv("RAG_K", "25"))
+
+def print_sources(resp: Response, max_chars: int = 800):
+    print("\n=== SOURCE NODES USED ===")
+    for i, nws in enumerate(resp.source_nodes, 0):
+        node = nws.node
+        src = node.metadata.get("source", "unknown")
+        print(f"\n--- #{i} score={nws.score:.4f} source={src} ---")
+        print(node.get_content()[:max_chars])
+    print("\n=== END SOURCES ===\n")
+
+# In the Workflow-based Agent, the .chat() method is typically asynchronous because Workflows are designed to handle long-running events and streaming.
+
+import asyncio
+async def start_chat():
+    agent, context = build_agent()
+    print("Type 'exit' to quit.\n")
+
+    while True:
+        msg = input("You: ").strip()
+        if msg.lower() in {"exit", "quit"}:
+            break
+        handler = agent.run(msg, ctx=context)
+
+        # Stream tokens (optional)
+        # optional UI polish - emit events (generated text) as they occur
+        async for event in handler.stream_events():
+            if isinstance(event, AgentStream): # only print 'generated text deltas' not tool call start/end, name, arguments, steps, errors, retries, etc.
+                print(event.delta, end="", flush=True)
+
+        response = await handler
+        print(f"\n\n")
+
+
+def just_answer():
+    question = "What was the average temperature yesterday?"
+    result = llamaindex_answer_question(question)
+    print("question: ", result["question"])
+    print("response: ", result["response"])
+    print("metadata: ", result["metadata"])
+
+
+
+
 if __name__ == "__main__":
-    question = "What is the average temperature today?"
-    result = answer_question(question)
-    print(result)
+    asyncio.run(start_chat())
+    # just_answer()

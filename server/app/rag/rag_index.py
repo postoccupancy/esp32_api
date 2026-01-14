@@ -49,7 +49,12 @@ def archive_documents_in_database(
     # the 'on conflict ... do update' lines prevent duplicates
     # it requires there be a unique constraint in the table setup on (device_id, window_start, window_end)
     sql = f"""
-      insert into {archive} (device_id, window_start, window_end, snapshot_text)
+      insert into {archive} (
+        device_id, 
+        window_start, 
+        window_end, 
+        snapshot_text
+        )
       values (%s, %s, %s, %s)
       on conflict (device_id, window_start, window_end)
       do update set snapshot_text = excluded.snapshot_text
