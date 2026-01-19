@@ -1,2 +1,22 @@
+# Secrets
 .env
+.env.*
+
+# Python
 .venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+#OS
+.DS_Store
+
+# Tools
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Scratch folders
+scratch
+supabase
