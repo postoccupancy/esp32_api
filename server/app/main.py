@@ -22,9 +22,9 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 # Accept either service role or anon; prefer service role on the server.
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
 SUPABASE_TABLE = os.getenv("SUPABASE_TABLE", "readings")
-INGEST_TOKEN = os.getenv("INGEST_TOKEN", "change-me")
 
-STATUS_TOKEN = os.getenv("STATUS_TOKEN", "a-long-secret-key")
+INGEST_TOKEN = os.getenv("INGEST_TOKEN")
+STATUS_TOKEN = os.getenv("STATUS_TOKEN")
 
 supabase = None
 
