@@ -1,4 +1,4 @@
-# **ESP32 Sensor API & Data Stack**
+# **ESP32 Sensor API & Chat Agent**
 
 A data ingestion, retrieval, and analysis backend for microcontroller sensor streams (ESP32) with initial support for RAG-style natural language querying.  
  This repository provides:
@@ -27,39 +27,45 @@ Key aspects of the stack include:
 
 * Planned integration with a React/Next.js frontend for visualization and agent interaction
 
-*(See also the documentation structure below.)*
+---
+
+## **Project Structure**
+
+`esp32_api/`  
+`├── server/                  # Backend service (FastAPI)`  
+`│   ├── app/                # Core application modules`  
+`│   ├── rag/                # RAG & LLM logic`  
+`│   └── main.py             # Data ingestion & status`  
+`├── device/                  # MicroPython scripts for ESP32`  
+`├── ui/                      # Placeholder for future frontend`  
+`├── docs/                    # Project documentation`  
+`├── .env.example             # Example environment vars`  
+`└── README.md                # This file`
+
 
 ---
 
-## **Documentation Structure**
+## **API Endpoints**
 
-This repository follows a structured documentation layout inspired by best practices. The primary documentation is housed under the `docs/` folder. Key sections include:
+### **Ingestion**
 
-**Notes & Tutorials**
+`POST /ingest`  
+ Ingests sensor payloads from ESP32 devices. Payload structure and parameters TBD.
 
-* `docs/notes/2026-01-rag-endpoints-and-vector-stores.md` — Developer notes on RAG, vector stores, and query endpoints.
+### **Time-Series Queries**
 
-* *(Future)* additional notes covering architectural decisions and integrations.
+`GET /timeseries`  
+Returns filtered time-series data based on query parameters (`sensor`, `from`, `to`, `avg`, `min`, `max`, etc.).
 
-**Architecture & Design**
+### **RAG & Semantic Endpoints**
 
-* `docs/architecture/overview.md` — High-level system architecture and data flow.
+* `POST /rag/query` — Chatbot that answers questions by generating SQL queries for the data and searching contextual documents.
 
-* `docs/architecture/state-management.md` — Notes on backend & frontend state strategies.
+* `POST /rag/index` — Batch embedding of time-series snapshots into vector store so LLM can answer data questions without SQL.
 
-**Endpoint References**
+* `POST /rag/ingest_docs` — Splits up PDFs and web pages into small, overlapping text chunks and embeds them in a vector DB.
 
-* `docs/endpoints/ingest.md` — Ingestion API details.
-
-* `docs/endpoints/query.md` — Query and analytics API details.
-
-**Developer Guides**
-
-* `docs/dev/cli.md` — CLI references & scripts.
-
-* `docs/dev/testing.md` — Testing and workflow recommendations.
-
-*(Each of these may be created as the project matures — see placeholders in the `/docs/` directory.)*
+*(Detailed request/response schemas to be documented in `/docs/endpoints/*.md`.)*
 
 ---
 
@@ -67,8 +73,8 @@ This repository follows a structured documentation layout inspired by best pract
 
 The system is composed of the following high-level components:
 
-`ESP32 Devices`  
-      `↓ (HTTP Ingestion)`  
+`ESP32 Microcontroller`  
+      `↓ (posts data live via HTTP)`  
 `FastAPI Backend ── PostgreSQL ── Snapshots & Raw Data`  
       `├─ /ingest, /timeseries`  
       `└─ /rag/index, /rag/query, /rag/ingest_docs`  
@@ -76,7 +82,7 @@ The system is composed of the following high-level components:
            `└─ RAG / Embeddings`  
 `Front-end (Next.js / React / TypeScript) — visualization & agent interaction`
 
-The planned frontend will most likely integrate the Vercel/Next AI SDK, which would move the RAG endpoints to frontend API routes in TypeScript.
+The planned frontend may integrate the Vercel/Next AI SDK, which would move the /rag endpoints to Front-end.
 
 ---
 
@@ -104,29 +110,6 @@ Set up environment variables (see **Configuration** below), then start the API:
 
 ---
 
-## **API Endpoints**
-
-### **Ingestion**
-
-`POST /ingest`  
- Ingests sensor payloads from ESP32 devices. Payload structure and parameters TBD.
-
-### **Time-Series Queries**
-
-`GET /timeseries`  
-Returns filtered time-series data based on query parameters (`sensor`, `from`, `to`, `avg`, `min`, `max`, etc.).
-
-### **RAG & Semantic Endpoints**
-
-* `POST /rag/query` — Natural language question answering combining SQL data and/or semantic retrieval
-
-* `POST /rag/index` — Batch indexing of time-series snapshots into vector store to allow non-SQL data queries
-
-* `POST /rag/ingest_docs` — Ingest reference PDFs and web pages into the vector store
-
-*(Detailed request/response schemas to be documented in `/docs/endpoints/*.md`.)*
-
----
 
 ## **Configuration**
 
@@ -135,21 +118,18 @@ Environment variables are used to control database connections. Copy `.env.examp
 
 ---
 
-## **Project Structure**
 
-`esp32_api/`  
-`├── server/                  # Backend service (FastAPI)`  
-`│   ├── app/                # Core application modules`  
-`│   ├── rag/                # RAG & indexing logic`  
-`│   └── main.py             # FastAPI entry point`  
-`├── device/                  # Device-side scripts & examples`  
-`├── ui/                      # Placeholder for future frontend`  
-`├── docs/                    # Project documentation`  
-`│   ├── notes/`  
-`│   ├── architecture/`  
-`│   └── endpoints/`  
-`├── .env.example             # Example environment vars`  
-`└── README.md                # This file`
+## **Documentation Structure**
+
+This repository follows a structured documentation layout inspired by best practices. The primary documentation is housed under the `docs/` folder. Key sections include:
+
+**Notes & Tutorials**
+
+* [`docs/notes/2025-12-17-open-source-agent-stack.md`](/blob/main/docs/2025-12-17-open-source-agent-stack.md) — Mapping out a free / open source agent development stack. 
+
+* [`2026-01-27-rag-setup-and-next-steps.md`](/blob/main/docs/2026-01-27-rag-setup-and-next-steps) — Discussion of how the RAG endpoints work, and how I plan to use them in an AI-enhanced data visualization interface. 
+
+* *(Future)* additional notes covering architectural decisions and integrations.
 
 
 ---
@@ -174,15 +154,5 @@ This project is open source and released under the BSD-3 Clause License.
 
 ## **What’s Next / Roadmap**
 
-As the repository evolves, the following documentation is planned (placeholders exist under `/docs/`):
-
-* **CLI Utility Guides** (`docs/dev/cli.md`)
-
-* **Endpoint Schema References** (`docs/endpoints/*.md`)
-
-* **Architecture & Data Flow Diagrams** (`docs/architecture/*.md`)
-
-* **Testing and CI** (`docs/dev/testing.md`)
-
-* **Frontend Integration Guide** (`docs/frontend/overview.md`)
+More documentation planned...
 
